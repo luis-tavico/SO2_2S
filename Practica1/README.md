@@ -1,5 +1,8 @@
+# INSTALACION Y MODIFICACION DE KERNEL
 
-# Pasos
+# Pasos seguidos
+
+A continuacion se detalla cada uno de los pasos seguidos para la instalacion y modificacion del kernel.
 
 ## Actualizar repositorios
 
@@ -20,41 +23,61 @@ $ sudo apt install build-essential libncurses-dev bison flex libssl-dev libelf-d
 
 ## Descargar y descomprimir el kernel
 
-A continuacion, debemos descargar el codigo fuente del kernel desde el sitio web oficial [kernel.org](https://kernel.org/).
+A continuacion, debemos descargar el codigo fuente del kernel desde el sitio web oficial [kernel.org](https://kernel.org/). Usaremos la version ```longterm``` mas reciente del kernel.
 
-Usaremos la version ```longterm``` del kernel. Copiamos el enlace del hipervinculo ```tarball```. Luego usamos este enlace para descargar y descomprimir la fuente del kernel.
+![img1](images/img1.png)
 
-```
-$ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.44.tar.xz
-$ tar -xf linux-6.6.44.tar.xz
-```
-
-## Mensaje
-
-Primero ingresamos al directorio donde se encuentra el archivo ```main.c``` del codigo fuente del kernel descomprimido.
-
+Copiamos la direccion del vinculo ```tarball```. Luego usamos este enlace para descargar y descomprimir la fuente del kernel.
 
 ```
-$ cd linux-6.6.44/init/
-
+$ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.45.tar.xz
+$ tar -xf linux-6.6.45.tar.xz
 ```
 
-## Nombre
+## Modificar el kernel
 
-Primero ingresamos al directorio donde se encuentra el archivo ```uts.h``` del codigo fuente del kernel descomprimido.
+### Mensaje personalizado
 
-```
-$ cd linux-6.6.44/include/linux/
-```
-
-## Llamadas al Sistema
-
-### Hora actual
-
-Primero ingresamos al siguiente directorio: 
+Agregaremos un mensaje personalizado al registro de inicio del kernel que de la bienvenida al usuario cuando se inicie el kernel para ello primero ingresamos al siguiente directorio:
 
 ```
-$ cd linux-6.6.44/kernel/time/
+$ cd linux-6.6.45/init/
+```
+
+Luego buscamos el archivo ```main.c``` y agregamos la siguiente linea de codigo en el archivo.
+
+```
+pr_notice("Bienvenido a USAC Linux - Nombre: Pedro Luis Pu Tavico, Carnet: 202000562\n");
+```
+
+### Nombre personalizado
+
+Modificaremos el nombre del kernel mostrado por uname a “USAC Linux” para ello primero ingresamos al siguiente directorio:
+
+```
+$ cd linux-6.6.45/include/linux/
+```
+
+Luego buscamos el archivo ```uts.h``` y modoficamos la siguiente linea de codigo:
+
+```
+#define UTS_SYSNAME "Linux"
+```
+
+por:
+
+```
+#define UTS_SYSNAME "USAC Linux"
+```
+
+### Llamadas al Sistema
+
+#### Hora actual
+
+Agregaremos una nueva llamada al sistema que devuelva la hora actual en segundos desde el epoch linux. para ello primero ingresamos al siguiente directorio: 
+
+```
+$ cd linux-6.6.45/kernel/time/
 ```
 
 Luego buscamos el archivo ```time.c``` y agregamos la siguiente funcion al final del archivo.
@@ -68,12 +91,12 @@ SYSCALL_DEFINE0(get_current_time)
 }
 ```
 
-### Tiempo actividad
+#### Tiempo actividad
 
-Primero ingresamos al siguiente directorio: 
+Agregaremos una llamada al sistema que devuelva el tiempo de actividad del sistema en segundos desde el ultimo reinicio, para ello primero ingresamos al siguiente directorio: 
 
 ```
-$ cd linux-6.6.44/kernel/time/
+$ cd linux-6.6.45/kernel/time/
 ```
 
 Luego buscamos el archivo ```time.c``` y agregamos la siguiente funcion al final del archivo.
@@ -87,12 +110,12 @@ SYSCALL_DEFINE0(get_system_uptime)
 }
 ```
 
-## Registrar Llamadas al Sistema
+### Registrar Llamadas al Sistema
 
-Primero ingresamos al siguiente directorio: 
+Registraremos las llamadas al sistema realizadas anteriormente en la tabla de llamadas del sistema, para ello primero ingresamos al siguiente directorio: 
 
 ```
-$ cd linux-6.6.44/arch/x86/entry/syscalls/
+$ cd linux-6.6.45/arch/x86/entry/syscalls/
 ```
 
 Luego buscamos el archivo ```syscall_64.tbl``` y agregamos la siguientes lineas de codigo al final del archivo.
@@ -103,9 +126,7 @@ Luego buscamos el archivo ```syscall_64.tbl``` y agregamos la siguientes lineas 
 550 common  get_last_five_logs  sys_get_last_five_logs
 ```
 
-## Modificacion del Archivo syscalls.h
-
-Primero ingresamos al siguiente directorio: 
+Ahora agregamos las declaraciones de las nuevas llamadas al sistema, entonces ingresamos al siguiente directorio: 
 
 ```
 $ cd include/linux/
@@ -124,7 +145,7 @@ asmlinkage long sys_get_last_five_logs(char *buffer);
 Primero ingrasamos al directorio del codigo fuente.
 
 ```
-$ cd linux-6.6.44
+$ cd linux-6.6.45
 ```
 
 La configuracion del kernel se debe especificar en un archivo .config. Para no escribir este desde 0 vamos a copiar el archivo de configuracion del Linux actualmente instalado.
@@ -183,3 +204,19 @@ $ sudo reboot
 ```
 
 Ahora hemos terminado de instalar el kernel con los cambios necesarios.
+
+# Errores ocurridos
+
+A continuacion se detalla cada uno de los errores que ocurrieron durante la instalacion y modificacion del kernel.
+
+## Falta de memoria RAM
+
+![img1](images/img1.png)
+
+## Otro error
+
+![img1](images/img1.png)
+
+## Otro Error
+
+![img1](images/img1.png)
