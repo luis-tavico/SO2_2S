@@ -77,17 +77,26 @@ por:
 Agregaremos una nueva llamada al sistema que devuelva la hora actual en segundos desde el epoch linux. para ello primero ingresamos al siguiente directorio: 
 
 ```
-$ cd linux-6.6.45/kernel/time/
+$ cd linux-6.6.45/kernel/
 ```
 
-Luego buscamos el archivo ```time.c``` y agregamos la siguiente funcion al final del archivo.
+Ahora creamos un nuevo archivo llamado ```get_current_time.c```.
 
 ```
+$ touch get_current_time.c
+```
+
+El contenido del archivo sera lo siguiente:
+
+```
+#include <linux/kernel.h>
+#include <linux/syscalls.h>
+#include <linux/timekeeping.h>
+
 SYSCALL_DEFINE0(get_current_time)
 {
-    struct timespec64 ts;
-    ktime_get_real_ts64(&ts);
-    return ts.tv_sec; // Retorna la hora en segundos desde el epoch
+    unsigned long epoch_time = ktime_get_real_seconds();
+    return epoch_time;
 }
 ```
 
@@ -96,17 +105,26 @@ SYSCALL_DEFINE0(get_current_time)
 Agregaremos una llamada al sistema que devuelva el tiempo de actividad del sistema en segundos desde el ultimo reinicio, para ello primero ingresamos al siguiente directorio: 
 
 ```
-$ cd linux-6.6.45/kernel/time/
+$ cd linux-6.6.45/kernel/
 ```
 
-Luego buscamos el archivo ```time.c``` y agregamos la siguiente funcion al final del archivo.
+Ahora creamos un nuevo archivo llamado ```get_system_uptime.c```.
 
 ```
+$ touch get_system_uptime.c
+```
+
+El contenido del archivo sera lo siguiente:
+
+```
+#include <linux/kernel.h>
+#include <linux/syscalls.h>
+#include <linux/timekeeping.h>
+
 SYSCALL_DEFINE0(get_system_uptime)
 {
-    struct timespec64 uptime;
-    get_monotonic_boottime64(&uptime);
-    return uptime.tv_sec; // Retorna el tiempo de actividad en segundos
+    unsigned long uptime = ktime_get_boottime_seconds();
+    return uptime;
 }
 ```
 
@@ -123,13 +141,12 @@ Luego buscamos el archivo ```syscall_64.tbl``` y agregamos la siguientes lineas 
 ```
 548 common  get_current_time    sys_get_current_time
 549 common  get_system_uptime   sys_get_system_uptime
-550 common  get_last_five_logs  sys_get_last_five_logs
 ```
 
 Ahora agregamos las declaraciones de las nuevas llamadas al sistema, entonces ingresamos al siguiente directorio: 
 
 ```
-$ cd include/linux/
+$ cd linux-6.6.45/include/linux/
 ```
 
 Luego buscamos el archivo ```syscalls.h``` y agregamos la siguientes lineas de codigo al final del archivo.
@@ -137,7 +154,76 @@ Luego buscamos el archivo ```syscalls.h``` y agregamos la siguientes lineas de c
 ```
 asmlinkage long sys_get_current_time(void);
 asmlinkage long sys_get_system_uptime(void);
-asmlinkage long sys_get_last_five_logs(char *buffer);
+```
+
+Por ultimo debemos generar los archivos objeto, para ello ingresamos al siguiente directorio:
+
+```
+$ cd linux-6.6.45/kernel/
+```
+
+Ahora buscamos el archivo ```Makefile``` y agregamos la siguientes lineas de codigo:
+
+```
+obj-y += get_current_time.o
+obj-y += get_system_uptime.o
+```
+
+## Crear achivo de prueba
+
+Para verificar que las llamadas al sistema funcionen bien, se procede a realizar un archivo de prueba que ejecute las llamadas al sistema creadas, para ello primero debemos crear un archivo lo nombraremos ```test_syscalls.c```.
+
+Luego agregamos el siguiente bloque de codigo:
+
+```
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+
+#define SYSCALL_CURRENT_TIME 548
+#define SYSCALL_SYSTEM_UPTIME 549
+
+#define BUFFER_SIZE 10120
+
+void test_current_time() {
+    long result = syscall(SYSCALL_CURRENT_TIME);
+    if (result >= 0) {
+        printf("Epoch Time: %ld segundos desde el epoch\n", result);
+    } else {
+        printf("Error al obtener el tiempo epoch\n");
+    }
+}
+
+void test_system_uptime() {
+    long result = syscall(SYSCALL_SYSTEM_UPTIME);
+    if (result >= 0) {
+        printf("Uptime: %ld segundos desde el último reinicio\n", result);
+    } else {
+        printf("Error al obtener el tiempo de actividad\n");
+    }
+}
+
+int main() {
+    printf("Probando syscall para epoch time:\n");
+    test_current_time();
+
+    printf("\nProbando syscall para uptime:\n");
+    test_system_uptime();
+
+    return 0;
+}
+```
+
+Ahora debemos compilar el archivo creado, entonces ejecutamos el siguiente comando:
+
+```
+gcc -o test_syscalls test_syscalls.c
+```
+
+Despues de compilar podemos ejecutar el programa para probar las nuevas llamadas al sistema con el siguiente comando:
+
+```
+./test_syscalls
 ```
 
 ## Configurar el kernel
@@ -237,4 +323,4 @@ Este comando se encargar de limpiar el espacio de trabajo usado.
 
 ## Otro Error
 
-![img4](images/img1.png)
+![img4](images/img3.png)
