@@ -211,12 +211,24 @@ A continuacion se detalla cada uno de los errores que ocurrieron durante la inst
 
 ## Falta de memoria RAM
 
-![img1](images/img1.png)
+![img2](images/img1.png)
 
-## Otro error
+## Falta de espacio
 
-![img1](images/img1.png)
+Este error ocurrio debido a la falta de espacio en el dispositivo y por lo tanto el proceso de compilacion fallo.
+
+![img3](images/img3.png)
+
+La causa de este error se debe a que anteriormente se realizaron varias compilaciones y esto provoco que archivos temporales ocuparan demasiado espacio.
+
+Para solucionar este error se ejecuto el siguiente comando:
+
+```
+make clean
+```
+
+Este comando se encargar de limpiar el espacio de trabajo usado.
 
 ## Otro Error
 
-![img1](images/img1.png)
+![img4](images/img1.png)
