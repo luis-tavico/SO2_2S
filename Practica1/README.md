@@ -211,7 +211,13 @@ A continuacion se detalla cada uno de los errores que ocurrieron durante la inst
 
 ## Falta de memoria RAM
 
-![img2](images/img1.png)
+Este error ocurrio debido a que el sistema se quedo sin memoria o recursos y por lo tanto el proceso de compilacion fallo.
+
+![img2](images/img2.png)
+
+Para solucionar este error se debe aumentar el tamaño de la memoria RAM de la maquina virtual en la que se esta trabajando.
+
+![img2-1](images/img2-1.png)
 
 ## Falta de espacio
 
