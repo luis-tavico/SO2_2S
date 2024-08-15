@@ -1,0 +1,1 @@
+savedcmd_arch/x86/crypto/modules.order := {   echo arch/x86/crypto/aesni-intel.o;   echo arch/x86/crypto/sha1-ssse3.o;   echo arch/x86/crypto/sha256-ssse3.o;   echo arch/x86/crypto/ghash-clmulni-intel.o;   echo arch/x86/crypto/polyval-clmulni.o;   echo arch/x86/crypto/crc32-pclmul.o;   echo arch/x86/crypto/crct10dif-pclmul.o; :; } > arch/x86/crypto/modules.order

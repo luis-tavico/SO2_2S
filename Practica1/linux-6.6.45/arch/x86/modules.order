@@ -1,0 +1,8 @@
+arch/x86/kernel/msr.o
+arch/x86/crypto/aesni-intel.o
+arch/x86/crypto/sha1-ssse3.o
+arch/x86/crypto/sha256-ssse3.o
+arch/x86/crypto/ghash-clmulni-intel.o
+arch/x86/crypto/polyval-clmulni.o
+arch/x86/crypto/crc32-pclmul.o
+arch/x86/crypto/crct10dif-pclmul.o

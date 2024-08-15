@@ -1,0 +1,1 @@
+savedcmd_arch/x86/crypto/built-in.a := rm -f arch/x86/crypto/built-in.a;  printf "arch/x86/crypto/%s " sha512-ssse3-asm.o sha512-avx-asm.o sha512-avx2-asm.o sha512_ssse3_glue.o blake2s-core.o blake2s-glue.o crc32c-intel_glue.o crc32c-pcl-intel-asm_64.o | xargs ar cDPrST arch/x86/crypto/built-in.a

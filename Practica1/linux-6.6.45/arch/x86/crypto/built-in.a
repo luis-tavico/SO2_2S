@@ -1,0 +1,18 @@
+!<thin>
+//                                              158       `
+sha512-ssse3-asm.o/
+sha512-avx-asm.o/
+sha512-avx2-asm.o/
+sha512_ssse3_glue.o/
+blake2s-core.o/
+blake2s-glue.o/
+crc32c-intel_glue.o/
+crc32c-pcl-intel-asm_64.o/
+/0              0           0     0     644     18272     `
+/20             0           0     0     644     18272     `
+/38             0           0     0     644     7904      `
+/57             0           0     0     644     233000    `
+/78             0           0     0     644     5816      `
+/94             0           0     0     644     24584     `
+/110            0           0     0     644     140736    `
+/131            0           0     0     644     13152     `

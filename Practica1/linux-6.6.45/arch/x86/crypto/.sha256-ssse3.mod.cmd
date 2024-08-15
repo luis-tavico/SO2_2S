@@ -1,0 +1,1 @@
+savedcmd_arch/x86/crypto/sha256-ssse3.mod := printf '%s\n'   sha256-ssse3-asm.o sha256-avx-asm.o sha256-avx2-asm.o sha256_ssse3_glue.o sha256_ni_asm.o | awk '!x[$$0]++ { print("arch/x86/crypto/"$$0) }' > arch/x86/crypto/sha256-ssse3.mod
