@@ -171,7 +171,11 @@ obj-y += get_system_uptime.o
 
 ## Crear achivo de prueba
 
-Para verificar que las llamadas al sistema funcionen bien, se procede a realizar un archivo de prueba que ejecute las llamadas al sistema creadas, para ello primero debemos crear un archivo lo nombraremos ```test_syscalls.c```.
+Para verificar que las llamadas al sistema funcionen bien, se procede a realizar un archivo de prueba que ejecute las llamadas al sistema creadas, para ello primero debemos crear un archivo lo nombraremos ```test_syscalls```.
+
+```
+$ touch test_syscalls.c
+```
 
 Luego agregamos el siguiente bloque de codigo:
 
@@ -188,28 +192,26 @@ Luego agregamos el siguiente bloque de codigo:
 void test_current_time() {
     long result = syscall(SYSCALL_CURRENT_TIME);
     if (result >= 0) {
-        printf("Epoch Time: %ld segundos desde el epoch\n", result);
+        printf("Tiempo actual desde el epoch: %ld segundos.\n", result);
     } else {
-        printf("Error al obtener el tiempo epoch\n");
+        printf("Error al obtener el tiempo actual desde el epoch.\n");
     }
 }
 
 void test_system_uptime() {
     long result = syscall(SYSCALL_SYSTEM_UPTIME);
     if (result >= 0) {
-        printf("Uptime: %ld segundos desde el último reinicio\n", result);
+        printf("Tiempo de actividad del sistema desde el ultimo reinicio: %ld segundos.\n", result);
     } else {
-        printf("Error al obtener el tiempo de actividad\n");
+        printf("Error al obtener el tiempo de actividad del sistema.\n");
     }
 }
 
 int main() {
-    printf("Probando syscall para epoch time:\n");
+    printf("***************************************************************************\n");
     test_current_time();
-
-    printf("\nProbando syscall para uptime:\n");
+    printf("***************************************************************************\n");
     test_system_uptime();
-
     return 0;
 }
 ```
@@ -217,13 +219,13 @@ int main() {
 Ahora debemos compilar el archivo creado, entonces ejecutamos el siguiente comando:
 
 ```
-gcc -o test_syscalls test_syscalls.c
+$ gcc -o test_syscalls test_syscalls.c
 ```
 
 Despues de compilar podemos ejecutar el programa para probar las nuevas llamadas al sistema con el siguiente comando:
 
 ```
-./test_syscalls
+$ ./test_syscalls
 ```
 
 ## Configurar el kernel
@@ -321,6 +323,12 @@ make clean
 
 Este comando se encargar de limpiar el espacio de trabajo usado.
 
-## Otro Error
+## Funcion no compila
 
-![img4](images/img3.png)
+Para solucionar este error se debe ingresar al siguiente directorio:
+
+```
+$ cd linux-6.6.45/kernel/
+```
+
+Luego debemos agregar la llamada a las funciones en el archivo ```Makefile```, esto forzara al kernel a compilar las funciones nuevas.
