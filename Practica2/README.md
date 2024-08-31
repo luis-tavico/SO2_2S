@@ -141,6 +141,8 @@ Luego buscamos el archivo ```syscall_64.tbl``` y agregamos la siguientes lineas 
 ```
 548 common  get_current_time    sys_get_current_time
 549 common  get_system_uptime   sys_get_system_uptime
+550 common  sys_my_encrypt      sys_my_encrypt
+551 common  sys_my_decrypt      sys_my_decrypt
 ```
 
 Ahora agregamos las declaraciones de las nuevas llamadas al sistema, entonces ingresamos al siguiente directorio: 
