@@ -73,173 +73,183 @@ El contenido del archivo sera lo siguiente:
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/mutex.h> 
+
+static DEFINE_MUTEX(sync_lock);
 
 typedef struct {
     unsigned char *input_data;
-    unsigned char *key_data;
-    size_t start_idx;
-    size_t end_idx;
+    unsigned char *cipher_key;
+    size_t range_start;
+    size_t range_end;
     size_t key_length;
-} thread_args_t;
+} worker_args_t;
 
-int xor_cipher_thread_func(void *args) {
-    thread_args_t *tdata = (thread_args_t *)args;
-    size_t i;
+int xor_encrypt_worker(void *params) {
+    worker_args_t *args = (worker_args_t *)params;
+    size_t idx;
+    int result;
 
-    printk(KERN_INFO "Hilo %s: Procesando cifrado XOR de %zu a %zu\n", current->comm, tdata->start_idx, tdata->end_idx);
-    for (i = tdata->start_idx; i < tdata->end_idx; ++i) {
-        tdata->input_data[i] ^= tdata->key_data[i % tdata->key_length];
+    result = mutex_lock_interruptible(&sync_lock);
+    if (result) {
+        return -EINTR;
     }
-    printk(KERN_INFO "Hilo %s: Cifrado completado\n", current->comm);
+
+    for (idx = args->range_start; idx < args->range_end; ++idx) {
+        if (kthread_should_stop()) {
+            mutex_unlock(&sync_lock);
+            return -EINTR;
+        }
+        args->input_data[idx] ^= args->cipher_key[idx % args->key_length];
+    }
+    mutex_unlock(&sync_lock);
     return 0;
 }
 
-unsigned char *load_key_file(const char *key_file_path, size_t *key_size) {
+unsigned char *load_key_from_file(const char *key_filepath, size_t *key_len) {
     struct file *key_file;
     loff_t offset = 0;
-    unsigned char *key_content;
+    unsigned char *key_buffer;
 
-    key_file = filp_open(key_file_path, O_RDONLY, 0);
+    key_file = filp_open(key_filepath, O_RDONLY, 0);
     if (IS_ERR(key_file)) {
-        printk(KERN_ERR "Error al abrir archivo de clave: %s\n", key_file_path);
         return NULL;
     }
 
-    *key_size = i_size_read(file_inode(key_file));
-    if (*key_size <= 0) {
-        printk(KERN_ERR "Error: archivo de clave con tamaño inválido\n");
+    *key_len = i_size_read(file_inode(key_file));
+    if (*key_len <= 0) {
         filp_close(key_file, NULL);
         return NULL;
     }
 
-    key_content = kmalloc(*key_size + 1, GFP_KERNEL);
-    if (!key_content) {
-        printk(KERN_ERR "Error al asignar memoria para la clave\n");
+    key_buffer = kmalloc(*key_len + 1, GFP_KERNEL);
+    if (!key_buffer) {
         filp_close(key_file, NULL);
         return NULL;
     }
 
-    kernel_read(key_file, key_content, *key_size, &offset);
-    key_content[*key_size] = '\0';
+    kernel_read(key_file, key_buffer, *key_len, &offset);
+    key_buffer[*key_len] = '\0';  
     filp_close(key_file, NULL);
-    return key_content;
+    return key_buffer;
 }
 
-unsigned char *load_input_file(const char *file_path, size_t *file_size) {
-    struct file *file;
+unsigned char *read_data_from_file(const char *filename, size_t *data_size) {
+    struct file *input_file;
     loff_t offset = 0;
-    unsigned char *file_content;
+    unsigned char *buffer;
 
-    file = filp_open(file_path, O_RDONLY, 0);
-    if (IS_ERR(file)) {
-        printk(KERN_ERR "Error al abrir archivo de entrada: %s\n", file_path);
+    input_file = filp_open(filename, O_RDONLY, 0);
+    if (IS_ERR(input_file)) {
         return NULL;
     }
 
-    *file_size = i_size_read(file_inode(file));
-    if (*file_size <= 0) {
-        printk(KERN_ERR "Error: archivo de entrada con tamaño inválido\n");
-        filp_close(file, NULL);
+    *data_size = i_size_read(file_inode(input_file));
+    if (*data_size <= 0) {
+        filp_close(input_file, NULL);
         return NULL;
     }
 
-    file_content = kmalloc(*file_size, GFP_KERNEL);
-    if (!file_content) {
-        printk(KERN_ERR "Error al asignar memoria para el archivo\n");
-        filp_close(file, NULL);
+    buffer = kmalloc(*data_size, GFP_KERNEL);
+    if (!buffer) {
+        filp_close(input_file, NULL);
         return NULL;
     }
 
-    kernel_read(file, file_content, *file_size, &offset);
-    filp_close(file, NULL);
-    return file_content;
+    kernel_read(input_file, buffer, *data_size, &offset);
+    filp_close(input_file, NULL);
+    return buffer;
 }
 
-int write_output_file(const char *file_path, unsigned char *data, size_t data_size) {
-    struct file *file;
+int save_data_to_file(const char *filename, unsigned char *output_data, size_t data_length) {
+    struct file *output_file;
     loff_t offset = 0;
-    ssize_t bytes_written;
+    ssize_t written;
 
-    file = filp_open(file_path, O_WRONLY | O_CREAT, 0644);
-    if (IS_ERR(file)) {
-        printk(KERN_ERR "Error al abrir archivo de salida: %s\n", file_path);
-        return PTR_ERR(file);
+    output_file = filp_open(filename, O_WRONLY | O_CREAT, 0644);
+    if (IS_ERR(output_file)) {
+        printk(KERN_ERR "ERROR: No se pudo abrir el archivo de salida: %s\n", filename);
+        return PTR_ERR(output_file);
     }
 
-    bytes_written = kernel_write(file, data, data_size, &offset);
-    if (bytes_written < 0) {
-        printk(KERN_ERR "Error al escribir en archivo de salida\n");
-        filp_close(file, NULL);
-        return bytes_written;
+    written = kernel_write(output_file, output_data, data_length, &offset);
+    if (written < 0) {
+        printk(KERN_ERR "ERROR: Error al escribir los datos\n");
+        filp_close(output_file, NULL);
+        return written;
     }
 
-    filp_close(file, NULL);
+    filp_close(output_file, NULL);
     return 0;
 }
 
-SYSCALL_DEFINE4(kernel_xor_encrypt, const char __user *, input_file, const char __user *, output_file, int, num_threads, const char __user *, key_file) {
-    size_t file_size, key_size;
+SYSCALL_DEFINE4(xor_encrypt_syscall, const char __user *, src_file, const char __user *, dest_file, int, num_threads, const char __user *, key_filepath) {
+    size_t data_len, key_len;
     unsigned char *file_data, *key_data;
-    struct task_struct **threads;
-    thread_args_t *thread_args;
-    size_t segment_size, start_pos;
-    int i, result;
+    struct task_struct **workers;
+    worker_args_t *worker_args;
+    size_t segment_size, offset;
+    int i, result = 0;
 
-    char kernel_input[256], kernel_output[256], kernel_key[256];
-    if (copy_from_user(kernel_input, input_file, sizeof(kernel_input))) return -EFAULT;
-    if (copy_from_user(kernel_output, output_file, sizeof(kernel_output))) return -EFAULT;
-    if (copy_from_user(kernel_key, key_file, sizeof(kernel_key))) return -EFAULT;
+    char kernel_src_file[256], kernel_dest_file[256], kernel_key_file[256];
+    if (copy_from_user(kernel_src_file, src_file, sizeof(kernel_src_file))) return -EFAULT;
+    if (copy_from_user(kernel_dest_file, dest_file, sizeof(kernel_dest_file))) return -EFAULT;
+    if (copy_from_user(kernel_key_file, key_filepath, sizeof(kernel_key_file))) return -EFAULT;
 
-    file_data = load_input_file(kernel_input, &file_size);
+    file_data = read_data_from_file(kernel_src_file, &data_len);
     if (!file_data) {
         return -EIO;
     }
 
-    key_data = load_key_file(kernel_key, &key_size);
+    key_data = load_key_from_file(kernel_key_file, &key_len);
     if (!key_data) {
         kfree(file_data);
         return -EIO;
     }
 
-    threads = kmalloc_array(num_threads, sizeof(struct task_struct *), GFP_KERNEL);
-    thread_args = kmalloc_array(num_threads, sizeof(thread_args_t), GFP_KERNEL);
-    if (!threads || !thread_args) {
+    workers = kmalloc_array(num_threads, sizeof(struct task_struct *), GFP_KERNEL);
+    worker_args = kmalloc_array(num_threads, sizeof(worker_args_t), GFP_KERNEL);
+    if (!workers || !worker_args) {
         kfree(file_data);
         kfree(key_data);
         return -ENOMEM;
     }
-
-    segment_size = file_size / num_threads;
-    start_pos = 0;
+    segment_size = data_len / num_threads;
+    offset = 0;
 
     for (i = 0; i < num_threads; ++i) {
-        thread_args[i].input_data = file_data;
-        thread_args[i].key_data = key_data;
-        thread_args[i].key_length = key_size;
-        thread_args[i].start_idx = start_pos;
-        thread_args[i].end_idx = (i == num_threads - 1) ? file_size : (start_pos + segment_size);
-        start_pos += segment_size;
-        printk(KERN_INFO "Iniciando hilo %d para cifrado desde %zu a %zu\n", i, thread_args[i].start_idx, thread_args[i].end_idx);
-        threads[i] = kthread_run(xor_cipher_thread_func, &thread_args[i], "cipher_thread_%d", i);
-        if (IS_ERR(threads[i])) {
-            printk(KERN_ERR "Error al crear hilo %d\n", i);
-            result = PTR_ERR(threads[i]);
+        worker_args[i].input_data = file_data;
+        worker_args[i].cipher_key = key_data;
+        worker_args[i].key_length = key_len;
+        worker_args[i].range_start = offset;
+        worker_args[i].range_end = (i == num_threads - 1) ? data_len : (offset + segment_size);
+        offset += segment_size;
+        workers[i] = kthread_run(xor_encrypt_worker, &worker_args[i], "xor_thread_worker_%d", i);
+        if (IS_ERR(workers[i])) {
+            printk(KERN_ERR "ERROR: Fallo al crear el hilo %d\n", i);
+            result = PTR_ERR(workers[i]);
             goto cleanup;
         }
     }
 
     for (i = 0; i < num_threads; ++i) {
-        if (threads[i]) {
-            kthread_stop(threads[i]);
+        if (workers[i]) {
+            int worker_result = kthread_stop(workers[i]);
+            if (worker_result != 0 && worker_result != -EINTR) {
+                printk(KERN_ERR "ERROR: El hilo %d finalizó con error %d\n", i, worker_result);
+            } else {
+                printk(KERN_INFO "Hilo %d finalizó correctamente\n", i);
+            }
         }
     }
-    result = write_output_file(kernel_output, file_data, file_size);
+
+    result = save_data_to_file(kernel_dest_file, file_data, data_len);
 
 cleanup:
     kfree(file_data);
     kfree(key_data);
-    kfree(threads);
-    kfree(thread_args);
+    kfree(workers);
+    kfree(worker_args);
 
     return result;
 }
@@ -281,103 +291,106 @@ El contenido del archivo sera lo siguiente:
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
+
+static DEFINE_MUTEX(decrypt_mutex);
 
 typedef struct {
-    unsigned char *input_data;
-    unsigned char *cipher_key;
-    size_t start_pos;
-    size_t end_pos;
+    unsigned char *buffer;
+    unsigned char *key;
+    size_t start_offset;
+    size_t end_offset;
     size_t key_length;
-} thread_task_t;
+} decrypt_thread_args_t;
 
-int xor_decrypt_thread(void *args) {
-    thread_task_t *task_data = (thread_task_t *)args;
+int xor_decrypt_worker(void *arg) {
+    decrypt_thread_args_t *args = (decrypt_thread_args_t *)arg;
     size_t i;
-    printk(KERN_INFO "Thread %s: Comenzando el proceso de desencriptado XOR desde %zu hasta %zu\n", current->comm, task_data->start_pos, task_data->end_pos);
-    
-    for (i = task_data->start_pos; i < task_data->end_pos; ++i) {
-        task_data->input_data[i] ^= task_data->cipher_key[i % task_data->key_length];
+    int lock_status;
+
+    lock_status = mutex_lock_interruptible(&decrypt_mutex);
+    if (lock_status) {
+        return -EINTR;
     }
-    
-    printk(KERN_INFO "Thread %s: Proceso de desencriptado completado\n", current->comm);
+
+    for (i = args->start_offset; i < args->end_offset; ++i) {
+        if (kthread_should_stop()) {
+            mutex_unlock(&decrypt_mutex);
+            return -EINTR;
+        }
+        args->buffer[i] ^= args->key[i % args->key_length];
+    }
+    mutex_unlock(&decrypt_mutex);
     return 0;
 }
 
-unsigned char *load_key_from_file(const char *key_path, size_t *key_len) {
+unsigned char *load_key(const char *key_path, size_t *key_size) {
     struct file *key_file;
-    loff_t offset = 0;
+    loff_t file_pos = 0;
     unsigned char *key_buffer;
 
     key_file = filp_open(key_path, O_RDONLY, 0);
     if (IS_ERR(key_file)) {
-        printk(KERN_ERR "ERROR: No se pudo abrir el archivo de clave: %s\n", key_path);
         return NULL;
     }
 
-    *key_len = i_size_read(file_inode(key_file));
-    if (*key_len <= 0) {
-        printk(KERN_ERR "ERROR: Tamaño del archivo de clave no válido\n");
+    *key_size = i_size_read(file_inode(key_file));
+    if (*key_size <= 0) {
         filp_close(key_file, NULL);
         return NULL;
     }
 
-    key_buffer = kmalloc(*key_len + 1, GFP_KERNEL);
+    key_buffer = kmalloc(*key_size + 1, GFP_KERNEL);
     if (!key_buffer) {
-        printk(KERN_ERR "ERROR: No se pudo asignar memoria para la clave\n");
         filp_close(key_file, NULL);
         return NULL;
     }
 
-    kernel_read(key_file, key_buffer, *key_len, &offset);
-    key_buffer[*key_len] = '\0';  
+    kernel_read(key_file, key_buffer, *key_size, &file_pos);
+    key_buffer[*key_size] = '\0';
     filp_close(key_file, NULL);
     return key_buffer;
 }
 
-unsigned char *load_file_to_memory(const char *file_path, size_t *file_len) {
+unsigned char *load_data(const char *input_path, size_t *data_size) {
     struct file *input_file;
-    loff_t offset = 0;
-    unsigned char *buffer;
+    loff_t file_pos = 0;
+    unsigned char *data_buffer;
 
-    input_file = filp_open(file_path, O_RDONLY, 0);
+    input_file = filp_open(input_path, O_RDONLY, 0);
     if (IS_ERR(input_file)) {
-        printk(KERN_ERR "ERROR: No se pudo abrir el archivo: %s\n", file_path);
         return NULL;
     }
 
-    *file_len = i_size_read(file_inode(input_file));
-    if (*file_len <= 0) {
-        printk(KERN_ERR "ERROR: Tamaño del archivo no válido\n");
+    *data_size = i_size_read(file_inode(input_file));
+    if (*data_size <= 0) {
         filp_close(input_file, NULL);
         return NULL;
     }
 
-    buffer = kmalloc(*file_len, GFP_KERNEL);
-    if (!buffer) {
-        printk(KERN_ERR "ERROR: No se pudo asignar memoria para el archivo\n");
+    data_buffer = kmalloc(*data_size, GFP_KERNEL);
+    if (!data_buffer) {
         filp_close(input_file, NULL);
         return NULL;
     }
 
-    kernel_read(input_file, buffer, *file_len, &offset);
+    kernel_read(input_file, data_buffer, *data_size, &file_pos);
     filp_close(input_file, NULL);
-    return buffer;
+    return data_buffer;
 }
 
-int save_data_to_file(const char *output_path, unsigned char *output_data, size_t data_size) {
+int save_data(const char *output_path, unsigned char *data, size_t data_size) {
     struct file *output_file;
-    loff_t offset = 0;
+    loff_t file_pos = 0;
     ssize_t bytes_written;
 
     output_file = filp_open(output_path, O_WRONLY | O_CREAT, 0644);
     if (IS_ERR(output_file)) {
-        printk(KERN_ERR "ERROR: No se pudo abrir el archivo de salida: %s\n", output_path);
         return PTR_ERR(output_file);
     }
 
-    bytes_written = kernel_write(output_file, output_data, data_size, &offset);
+    bytes_written = kernel_write(output_file, data, data_size, &file_pos);
     if (bytes_written < 0) {
-        printk(KERN_ERR "ERROR: Fallo al escribir en el archivo de salida\n");
         filp_close(output_file, NULL);
         return bytes_written;
     }
@@ -386,74 +399,76 @@ int save_data_to_file(const char *output_path, unsigned char *output_data, size_
     return 0;
 }
 
-SYSCALL_DEFINE4(decrypt_xor_syscall, const char __user *, src_file, const char __user *, dest_file, int, num_of_threads, const char __user *, key_path) {
-    size_t file_length, key_length;
-    unsigned char *input_data, *key_data;
-    struct task_struct **thread_pool;
-    thread_task_t *tasks;
-    size_t segment_size, start_offset;
-    int i, ret;
+SYSCALL_DEFINE4(xor_decrypt, const char __user *, input_file, const char __user *, output_file, int, num_threads, const char __user *, key_file) {
+    size_t data_size, key_size;
+    unsigned char *data_buffer, *key_buffer;
+    struct task_struct **thread_handles;
+    decrypt_thread_args_t *thread_args;
+    size_t chunk_size, offset;
+    int i, result = 0;
 
-    char kernel_src_file[256], kernel_dest_file[256], kernel_key_file[256];
-    if (copy_from_user(kernel_src_file, src_file, sizeof(kernel_src_file))) return -EFAULT;
-    if (copy_from_user(kernel_dest_file, dest_file, sizeof(kernel_dest_file))) return -EFAULT;
-    if (copy_from_user(kernel_key_file, key_path, sizeof(kernel_key_file))) return -EFAULT;
+    char input_file_path[256], output_file_path[256], key_file_path[256];
+    if (copy_from_user(input_file_path, input_file, sizeof(input_file_path))) return -EFAULT;
+    if (copy_from_user(output_file_path, output_file, sizeof(output_file_path))) return -EFAULT;
+    if (copy_from_user(key_file_path, key_file, sizeof(key_file_path))) return -EFAULT;
 
-    input_data = load_file_to_memory(kernel_src_file, &file_length);
-    if (!input_data) {
+    data_buffer = load_data(input_file_path, &data_size);
+    if (!data_buffer) {
         return -EIO;
     }
 
-    key_data = load_key_from_file(kernel_key_file, &key_length);
-    if (!key_data) {
-        kfree(input_data);
+    key_buffer = load_key(key_file_path, &key_size);
+    if (!key_buffer) {
+        kfree(data_buffer);
         return -EIO;
     }
 
-    thread_pool = kmalloc_array(num_of_threads, sizeof(struct task_struct *), GFP_KERNEL);
-    tasks = kmalloc_array(num_of_threads, sizeof(thread_task_t), GFP_KERNEL);
-    if (!thread_pool || !tasks) {
-        kfree(input_data);
-        kfree(key_data);
+    thread_handles = kmalloc_array(num_threads, sizeof(struct task_struct *), GFP_KERNEL);
+    thread_args = kmalloc_array(num_threads, sizeof(decrypt_thread_args_t), GFP_KERNEL);
+    if (!thread_handles || !thread_args) {
+        kfree(data_buffer);
+        kfree(key_buffer);
         return -ENOMEM;
     }
 
-    segment_size = file_length / num_of_threads;
-    start_offset = 0;
+    chunk_size = data_size / num_threads;
+    offset = 0;
 
-    for (i = 0; i < num_of_threads; ++i) {
-        tasks[i].input_data = input_data;
-        tasks[i].cipher_key = key_data;
-        tasks[i].key_length = key_length;
-        tasks[i].start_pos = start_offset;
-        tasks[i].end_pos = (i == num_of_threads - 1) ? file_length : (start_offset + segment_size);
-        start_offset += segment_size;
+    for (i = 0; i < num_threads; ++i) {
+        thread_args[i].buffer = data_buffer;
+        thread_args[i].key = key_buffer;
+        thread_args[i].key_length = key_size;
+        thread_args[i].start_offset = offset;
+        thread_args[i].end_offset = (i == num_threads - 1) ? data_size : (offset + chunk_size);
+        offset += chunk_size;
 
-        printk(KERN_INFO "Lanzando hilo %d para desencriptar desde byte %zu a %zu\n", i, tasks[i].start_pos, tasks[i].end_pos);
-
-        thread_pool[i] = kthread_run(xor_decrypt_thread, &tasks[i], "thread_xor_%d", i);
-        if (IS_ERR(thread_pool[i])) {
+        thread_handles[i] = kthread_run(xor_decrypt_worker, &thread_args[i], "decrypt_thread_%d", i);
+        if (IS_ERR(thread_handles[i])) {
             printk(KERN_ERR "ERROR: No se pudo iniciar el hilo %d\n", i);
-            ret = PTR_ERR(thread_pool[i]);
+            result = PTR_ERR(thread_handles[i]);
             goto cleanup;
         }
     }
 
-    for (i = 0; i < num_of_threads; ++i) {
-        if (thread_pool[i]) {
-            kthread_stop(thread_pool[i]);
+    for (i = 0; i < num_threads; ++i) {
+        if (thread_handles[i]) {
+            int thread_status = kthread_stop(thread_handles[i]);
+            if (thread_status != 0 && thread_status != -EINTR) {
+                printk(KERN_ERR "ERROR: El hilo %d terminó con error %d\n", i, thread_status);
+            } else {
+                printk(KERN_INFO "Hilo %d finalizó correctamente\n", i);
+            }
         }
     }
-
-    ret = save_data_to_file(kernel_dest_file, input_data, file_length);
+    result = save_data(output_file_path, data_buffer, data_size);
 
 cleanup:
-    kfree(input_data);
-    kfree(key_data);
-    kfree(thread_pool);
-    kfree(tasks);
+    kfree(data_buffer);
+    kfree(key_buffer);
+    kfree(thread_handles);
+    kfree(thread_args);
 
-    return ret;
+    return result;
 }
 ```
 
