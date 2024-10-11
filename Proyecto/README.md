@@ -30,8 +30,8 @@ A continuacion, debemos descargar el codigo fuente del kernel desde el sitio web
 Copiamos la direccion del vinculo ```tarball```. Luego usamos este enlace para descargar y descomprimir la fuente del kernel.
 
 ```
-$ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.45.tar.xz
-$ tar -xf linux-6.6.45.tar.xz
+$ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.54.tar.xz
+$ tar -xf linux-6.6.54.tar.xz
 ```
 
 ## Modificar el kernel
@@ -794,12 +794,55 @@ En caso de desencriptar:
 $ ./decrypt_app
 ```
 
+```
+{
+	"memoryInfo":	{
+		"free":	1605672960,
+		"used":	3474001920,
+		"cached":	1088667648
+	},
+	"swapInfo":	{
+		"free":	420416,
+		"used":	103871
+	},
+	"pageFaults":	{
+		"minors":	16933,
+		"majors":	0
+	},
+	"activeInactivePages":	{
+		"active":	177540,
+		"inactive":	470811
+	},
+	"topProcesses":	[{
+			"pid":	5416,
+			"name":	"node",
+			"memoryUsage":	390553600
+		}, {
+			"pid":	2699,
+			"name":	"code",
+			"memoryUsage":	243548160
+		}, {
+			"pid":	5215,
+			"name":	"chrome",
+			"memoryUsage":	211554304
+		}, {
+			"pid":	3603,
+			"name":	"chrome",
+			"memoryUsage":	193298432
+		}, {
+			"pid":	5670,
+			"name":	"code",
+			"memoryUsage":	153034752
+		}]
+}
+```
+
 ## Configurar el kernel
 
 Primero ingrasamos al directorio del codigo fuente.
 
 ```
-$ cd linux-6.6.45
+$ cd linux-6.6.54
 ```
 
 La configuracion del kernel se debe especificar en un archivo .config. Para no escribir este desde 0 vamos a copiar el archivo de configuracion del Linux actualmente instalado.
