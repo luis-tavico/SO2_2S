@@ -4,9 +4,10 @@ import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 const COLORS = ['#FF8042', '#0088FE'];
 
 function ActiveInactivePagesPie({ activeInactivePages }) {
+  
   const data = [
-    { name: 'Active Pages', value: activeInactivePages.active },
-    { name: 'Inactive Pages', value: activeInactivePages.inactive },
+    { name: 'Paginas Activas',   value: activeInactivePages.active   },
+    { name: 'Paginas Inactivas', value: activeInactivePages.inactive },
   ];
 
   return (

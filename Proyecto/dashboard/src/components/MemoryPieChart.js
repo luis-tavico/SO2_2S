@@ -3,11 +3,12 @@ import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28'];
 
-function MemoryPieChart({ memoryBreakdown }) {
+function MemoryPieChart({ memoryInfo }) {
+  
   const data = [
-    { name: 'Used Memory', value: memoryBreakdown.used },
-    { name: 'Free Memory', value: memoryBreakdown.free },
-    { name: 'Cached Memory', value: memoryBreakdown.cached },
+    { name: 'Memoria Libre', value: memoryInfo.free   },
+    { name: 'Memoria Usada', value: memoryInfo.used   },
+    { name: 'Memoria cache', value: memoryInfo.cached },
   ];
 
   return (
