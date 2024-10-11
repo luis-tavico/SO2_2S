@@ -30,8 +30,8 @@ A continuacion, debemos descargar el codigo fuente del kernel desde el sitio web
 Copiamos la direccion del vinculo ```tarball```. Luego usamos este enlace para descargar y descomprimir la fuente del kernel.
 
 ```
-$ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.54.tar.xz
-$ tar -xf linux-6.6.54.tar.xz
+$ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.45.tar.xz
+$ tar -xf linux-6.6.45.tar.xz
 ```
 
 ## Modificar el kernel
@@ -51,7 +51,7 @@ páginas de memoria activas e inactivas en el sistema.
 Para ello primero ingresamos al siguiente directorio: 
 
 ```
-$ cd linux-6.6.54/kernel/
+$ cd linux-6.6.45/kernel/
 ```
 
 Ahora al archivo ```sys.c``` le agremos los siguientes bloques de codigo:
@@ -213,7 +213,7 @@ SYSCALL_DEFINE3(obtener_procesos_memoria, pid_t __user *, pids, unsigned long __
 Registraremos las llamadas al sistema realizadas anteriormente en la tabla de llamadas del sistema, para ello primero ingresamos al siguiente directorio: 
 
 ```
-$ cd linux-6.6.54/arch/x86/entry/syscalls/
+$ cd linux-6.6.45/arch/x86/entry/syscalls/
 ```
 
 Luego buscamos el archivo ```syscall_64.tbl``` y agregamos la siguientes lineas de codigo al final del archivo.
@@ -229,7 +229,7 @@ Luego buscamos el archivo ```syscall_64.tbl``` y agregamos la siguientes lineas 
 Ahora agregamos las declaraciones de las nuevas llamadas al sistema, entonces ingresamos al siguiente directorio: 
 
 ```
-$ cd linux-6.6.54/include/linux/
+$ cd linux-6.6.45/include/linux/
 ```
 
 Luego crearemos un archivo el cual nombraremos ```syscalls_usac.h``` y agregamos la siguientes lineas de codigo al archivo.
@@ -785,7 +785,7 @@ npm start
 Primero ingrasamos al directorio del codigo fuente.
 
 ```
-$ cd linux-6.6.54
+$ cd linux-6.6.45
 ```
 
 La configuracion del kernel se debe especificar en un archivo .config. Para no escribir este desde 0 vamos a copiar el archivo de configuracion del Linux actualmente instalado.
@@ -849,23 +849,31 @@ Ahora hemos terminado de instalar el kernel con los cambios necesarios.
 
 A continuacion se detalla cada uno de los errores que ocurrieron durante la instalacion y modificacion del kernel.
 
-## Syscalls no fueron correctamente registradas
+## Campos no reconocidos
 
-Este error ocurrio debido a que el sistema se quedo sin memoria o recursos y por lo tanto el proceso de compilacion fallo.
+Este error ocurrio debido a que ```struct sysinfo``` no tiene miembros llamados cached, active o inactive.
 
-Este error indica que el compilador no encuentra referencias a las funciones del sistema (```my_encrypt``` y ```my_decrypt```) en el proceso de enlace final del kernel.
+![Error1](images/err1.png)
 
-![img2](images/img2.png)
+Para solucionar este error ```struct sysinfo``` se implemento otra logica ya que los campos llamados no existen.
 
-Para solucionar este error se corroboro que los archivos .o en las syscalls estén correctamente definidos en el Makefile.
+## Simbolos no definidos
 
-![img2-1](images/img2-1.png)
+Este error sucedio debido a que las funciones fueron implementadas en otro archivo y la llamarlas no fueron encontradas.
+
+![Error2](images/err2.png)
+
+Para solucionarlo fue necesario agregar las funciones al siguiente archivo:
+
+```
+$ cd linux-6.6.45/kernel/sys.c
+```
 
 ## Falta de espacio
 
 Este error ocurrio debido a la falta de espacio en el dispositivo y por lo tanto el proceso de compilacion fallo.
 
-![img3](images/img3.png)
+![Error3](images/err3.png)
 
 La causa de este error se debe a que anteriormente se realizaron varias compilaciones y esto provoco que archivos temporales ocuparan demasiado espacio.
 
@@ -875,14 +883,4 @@ Para solucionar este error se ejecuto el siguiente comando:
 make clean
 ```
 
-Este comando se encargar de limpiar el espacio de trabajo usado.
-
-## Funcion no compila
-
-Para solucionar este error se debe ingresar al siguiente directorio:
-
-```
-$ cd linux-6.6.45/kernel/
-```
-
-Luego debemos agregar la llamada a las funciones en el archivo ```Makefile```, esto forzara al kernel a compilar las funciones nuevas.
+Este comando se encargara de limpiar el espacio de trabajo usado.
