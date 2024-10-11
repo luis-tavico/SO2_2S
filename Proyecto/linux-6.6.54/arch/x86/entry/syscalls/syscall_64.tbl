@@ -375,11 +375,11 @@
 451	common	cachestat		sys_cachestat
 452	common	fchmodat2		sys_fchmodat2
 453	64	map_shadow_stack	sys_map_shadow_stack
-454	64	get_memory_info		sys_get_memory_info
-455	64	get_swap_info		sys_get_swap_info
-456	64	get_page_faults		sys_get_page_faults
-457	64	get_act_inact_pages	sys_get_act_inact_pages
-458	64	get_memory_processes	sys_get_memory_processes
+454	64	obtener_info_memoria		sys_obtener_info_memoria
+455	64	obtener_info_swap		    sys_obtener_info_swap
+456	64	obtener_fallos_pagina		sys_obtener_fallos_pagina
+457	64	obtener_paginas_act_inact	sys_obtener_paginas_act_inact
+458	64	obtener_procesos_memoria	sys_obtener_procesos_memoria
 
 #
 # Due to a historical design error, certain syscalls are numbered differently

@@ -1,16 +1,13 @@
-#ifndef _LINUX_SYSCALLS_USAC_H
-#define _LINUX_SYSCALLS_USAC_H
+#ifndef _SYSCALLS_USAC_H
+#define _SYSCALLS_USAC_H
 
-#include <linux/types.h>  // Incluye los tipos de datos básicos como size_t y ssize_t
-#include <linux/syscalls.h>  // Incluye la infraestructura de llamadas al sistema
+#include <linux/kernel.h>
+#include <linux/syscalls.h>
 
-asmlinkage long sys_my_decrypt(int input_fd, int output_fd, int threads, int key_fd);
-asmlinkage long sys_my_encrypt(int input_fd, int output_fd, int threads, int key_fd);
+asmlinkage long obtener_info_memoria(unsigned long *memoria_libre, unsigned long *memoria_usada, unsigned long *memoria_cacheada);
+asmlinkage long obtener_info_swap(unsigned long *swap_libre, unsigned long *swap_usada);
+asmlinkage long obtener_fallos_pagina(unsigned long *fallos_menores, unsigned long *fallos_mayores);
+asmlinkage long obtener_paginas_act_inact(unsigned long *paginas_activas, unsigned long *paginas_inactivas);
+asmlinkage long obtener_procesos_memoria(pid_t __user *pids, unsigned long __user *uso_memorias, char __user *nombres_procesos);
 
-asmlinkage long get_memory_info(unsigned long *mem_free, unsigned long *mem_used, unsigned long *mem_cached);
-asmlinkage long get_swap_info(unsigned long *swap_free, unsigned long *swap_used);
-asmlinkage long get_page_faults(unsigned long *minor_faults, unsigned long *major_faults);
-asmlinkage long get_act_inact_pages(unsigned long *active_pages, unsigned long *inactive_pages);
-asmlinkage long get_memory_processes(pid_t __user *pids, unsigned long __user *mem_usage, char __user *names);
-
-#endif  /* _LINUX_SYSCALLS_USAC_H */
+#endif

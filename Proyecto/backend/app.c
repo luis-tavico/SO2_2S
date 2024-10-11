@@ -13,61 +13,61 @@
 #define TOP_PROCESSES 5
 #define TASK_COMM_LEN 16
 
-#define SYS_get_memory_info         454
-#define SYS_get_swap_info           455
-#define SYS_get_page_faults         456
-#define SYS_get_act_inact_pages     457
-#define SYS_get_memory_processes    458
+#define SYS_obtener_info_memoria        454
+#define SYS_obtener_info_swap           455
+#define SYS_obtener_fallos_pagina       456
+#define SYS_obtener_paginas_act_inact   457
+#define SYS_obtener_procesos_memoria    458
 
-void get_memory_info(unsigned long *mem_free, unsigned long *mem_used, unsigned long *mem_cached) {
-    long result = syscall(SYS_get_memory_info, mem_free, mem_used, mem_cached);
+void get_memory_info(unsigned long *memoria_libre, unsigned long *memoria_usada, unsigned long *memoria_cacheada) {
+    long result = syscall(SYS_obtener_info_memoria, memoria_libre, memoria_usada, memoria_cacheada);
     if (result != 0) {
         perror("Error getting memory info");
     }
 }
 
-void get_swap_info(unsigned long *swap_free, unsigned long *swap_used) {
-    long result = syscall(SYS_get_swap_info, swap_free, swap_used);
+void get_swap_info(unsigned long *swap_libre, unsigned long *swap_usada) {
+    long result = syscall(SYS_obtener_info_swap, swap_libre, swap_usada);
     if (result != 0) {
         perror("Error getting swap info");
     }
 }
 
-void get_page_faults(unsigned long *minor_faults, unsigned long *major_faults) {
-    long result = syscall(SYS_get_page_faults, minor_faults, major_faults);
+void get_page_faults(unsigned long *fallos_menores, unsigned long *fallos_mayores) {
+    long result = syscall(SYS_obtener_fallos_pagina, fallos_menores, fallos_mayores);
     if (result != 0) {
         perror("Error getting page faults");
     }
 }
 
-void get_act_inact_pages(unsigned long *active_pages, unsigned long *inactive_pages) {
-    long result = syscall(SYS_get_act_inact_pages, active_pages, inactive_pages);
+void get_act_inact_pages(unsigned long *paginas_activas, unsigned long *paginas_inactivas) {
+    long result = syscall(SYS_obtener_paginas_act_inact, paginas_activas, paginas_inactivas);
     if (result != 0) {
         perror("Error getting active/inactive pages");
     }
 }
 
 void get_memory_processes(pid_t pids[], unsigned long mem_usage[], char names[][TASK_COMM_LEN]) {
-    long result = syscall(SYS_get_memory_processes, pids, mem_usage, names);
+    long result = syscall(SYS_obtener_procesos_memoria, pids, mem_usage, names);
     if (result != 0) {
         perror("Error getting memory processes");
     }
 }
 
 void send_json_response(int client_socket) {
-    unsigned long mem_free, mem_used, mem_cached;
-    unsigned long swap_free, swap_used;
-    unsigned long minor_faults, major_faults;
-    unsigned long active_pages, inactive_pages;
+    unsigned long memoria_libre, memoria_usada, memoria_cacheada;
+    unsigned long swap_libre, swap_usada;
+    unsigned long fallos_menores, fallos_mayores;
+    unsigned long paginas_activas, paginas_inactivas;
     pid_t pids[TOP_PROCESSES];
     unsigned long mem_usage[TOP_PROCESSES];
     char names[TOP_PROCESSES][TASK_COMM_LEN];
 
     // Llamadas a las syscalls
-    get_memory_info(&mem_free, &mem_used, &mem_cached);
-    get_swap_info(&swap_free, &swap_used);
-    get_page_faults(&minor_faults, &major_faults);
-    get_act_inact_pages(&active_pages, &inactive_pages);
+    get_memory_info(&memoria_libre, &memoria_usada, &memoria_cacheada);
+    get_swap_info(&swap_libre, &swap_usada);
+    get_page_faults(&fallos_menores, &fallos_mayores);
+    get_act_inact_pages(&paginas_activas, &paginas_inactivas);
     get_memory_processes(pids, mem_usage, names);
 
     // Crear el JSON
@@ -75,27 +75,27 @@ void send_json_response(int client_socket) {
 
     // Información de memoria
     cJSON *memory_info = cJSON_CreateObject();
-    cJSON_AddNumberToObject(memory_info, "free", mem_free);
-    cJSON_AddNumberToObject(memory_info, "used", mem_used);
-    cJSON_AddNumberToObject(memory_info, "cached", mem_cached);
+    cJSON_AddNumberToObject(memory_info, "free", memoria_libre);
+    cJSON_AddNumberToObject(memory_info, "used", memoria_usada);
+    cJSON_AddNumberToObject(memory_info, "cached", memoria_cacheada);
     cJSON_AddItemToObject(json, "memoryInfo", memory_info);
 
     // Información de swap
     cJSON *swap_info = cJSON_CreateObject();
-    cJSON_AddNumberToObject(swap_info, "free", swap_free);
-    cJSON_AddNumberToObject(swap_info, "used", swap_used);
+    cJSON_AddNumberToObject(swap_info, "free", swap_libre);
+    cJSON_AddNumberToObject(swap_info, "used", swap_usada);
     cJSON_AddItemToObject(json, "swapInfo", swap_info);
 
     // Fallos de página
     cJSON *page_faults = cJSON_CreateObject();
-    cJSON_AddNumberToObject(page_faults, "minors", minor_faults);
-    cJSON_AddNumberToObject(page_faults, "majors", major_faults);
+    cJSON_AddNumberToObject(page_faults, "minors", fallos_menores);
+    cJSON_AddNumberToObject(page_faults, "majors", fallos_mayores);
     cJSON_AddItemToObject(json, "pageFaults", page_faults);
 
     // Páginas activas/inactivas
     cJSON *active_inactive_pages = cJSON_CreateObject();
-    cJSON_AddNumberToObject(active_inactive_pages, "active", active_pages);
-    cJSON_AddNumberToObject(active_inactive_pages, "inactive", inactive_pages);
+    cJSON_AddNumberToObject(active_inactive_pages, "active", paginas_activas);
+    cJSON_AddNumberToObject(active_inactive_pages, "inactive", paginas_inactivas);
     cJSON_AddItemToObject(json, "activeInactivePages", active_inactive_pages);
 
     // Procesos con mayor uso de memoria

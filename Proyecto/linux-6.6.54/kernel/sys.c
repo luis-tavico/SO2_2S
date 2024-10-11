@@ -217,137 +217,137 @@ out:
 	return error;
 }
 
-SYSCALL_DEFINE3(get_memory_info, unsigned long __user *, mem_free, unsigned long __user *, mem_used, unsigned long __user *, mem_cached) {
-    struct sysinfo info;
-    struct file *file;
-    char *buffer;
-    unsigned long total_ram, free_ram, cached_ram, used_ram;
-    loff_t pos = 0;
-    ssize_t read_size;
+SYSCALL_DEFINE3(obtener_info_memoria, unsigned long __user *, memoria_libre, unsigned long __user *, memoria_usada, unsigned long __user *, memoria_cacheada) {
+    struct sysinfo info_memoria;
+    struct file *archivo_meminfo;
+    char *buffer_lectura;
+    unsigned long total_memoria, libre_memoria, cacheada_memoria, usada_memoria;
+    loff_t posicion = 0;
+    ssize_t tamano_lectura;
 
-    // Obtener la información de la memoria
-    si_meminfo(&info);
+    // Obtener estadísticas del sistema sobre la memoria
+    si_meminfo(&info_memoria);
 
-    total_ram = info.totalram * info.mem_unit;
-    free_ram = info.freeram * info.mem_unit;
+    total_memoria = info_memoria.totalram * info_memoria.mem_unit;
+    libre_memoria = info_memoria.freeram * info_memoria.mem_unit;
 
-    // Inicialmente usamos bufferram, pero leeremos el caché completo de /proc/meminfo
-    cached_ram = info.bufferram * info.mem_unit;
+    // Inicialmente cacheamos usando bufferram, pero obtendremos más datos de /proc/meminfo
+    cacheada_memoria = info_memoria.bufferram * info_memoria.mem_unit;
 
-    // Reservar espacio para el buffer de lectura
-    buffer = kzalloc(256, GFP_KERNEL);
-    if (!buffer) {
+    // Asignar espacio para el buffer de lectura
+    buffer_lectura = kzalloc(256, GFP_KERNEL);
+    if (!buffer_lectura) {
         return -ENOMEM;
     }
 
-    // Leer el valor de caché desde /proc/meminfo
-    file = filp_open("/proc/meminfo", O_RDONLY, 0);
-    if (IS_ERR(file)) {
-        kfree(buffer);
-        return PTR_ERR(file);
+    // Leer información detallada desde /proc/meminfo
+    archivo_meminfo = filp_open("/proc/meminfo", O_RDONLY, 0);
+    if (IS_ERR(archivo_meminfo)) {
+        kfree(buffer_lectura);
+        return PTR_ERR(archivo_meminfo);
     }
 
-    read_size = kernel_read(file, buffer, 255, &pos);
-    filp_close(file, NULL);
+    tamano_lectura = kernel_read(archivo_meminfo, buffer_lectura, 255, &posicion);
+    filp_close(archivo_meminfo, NULL);
 
-    if (read_size < 0) {
-        kfree(buffer);
+    if (tamano_lectura < 0) {
+        kfree(buffer_lectura);
         return -EFAULT;
     }
 
-    // Procesar la salida de /proc/meminfo para encontrar "Cached:"
-    char *cached_str = strstr(buffer, "Cached:");
-    if (cached_str) {
-        sscanf(cached_str, "Cached: %lu kB", &cached_ram);
-        cached_ram *= 1024;  // Convertir de KB a bytes
+    // Buscar "Cached:" en el archivo leído
+    char *cadena_cacheada = strstr(buffer_lectura, "Cached:");
+    if (cadena_cacheada) {
+        sscanf(cadena_cacheada, "Cached: %lu kB", &cacheada_memoria);
+        cacheada_memoria *= 1024;  // Conversión de KB a bytes
     }
 
-    used_ram = total_ram - free_ram - cached_ram;
+    usada_memoria = total_memoria - libre_memoria - cacheada_memoria;
 
-    // Liberar el buffer de lectura
-    kfree(buffer);
+    // Liberar el buffer
+    kfree(buffer_lectura);
 
-    // Copiar la información a los punteros del espacio de usuario
-    if (copy_to_user(mem_free, &free_ram, sizeof(free_ram)) ||
-        copy_to_user(mem_used, &used_ram, sizeof(used_ram)) ||
-        copy_to_user(mem_cached, &cached_ram, sizeof(cached_ram))) {
+    // Pasar los valores al espacio de usuario
+    if (copy_to_user(memoria_libre, &libre_memoria, sizeof(libre_memoria)) ||
+        copy_to_user(memoria_usada, &usada_memoria, sizeof(usada_memoria)) ||
+        copy_to_user(memoria_cacheada, &cacheada_memoria, sizeof(cacheada_memoria))) {
         return -EFAULT;
     }
 
-    return 0;  // Éxito
+    return 0;  // Operación exitosa
 }
 
-SYSCALL_DEFINE2(get_swap_info, unsigned long __user *, swap_free, unsigned long __user *, swap_used) {
+SYSCALL_DEFINE2(obtener_info_swap, unsigned long __user *, swap_libre, unsigned long __user *, swap_usada) {
     unsigned long total_swap = total_swap_pages;
-    unsigned long free_swap = get_nr_swap_pages();
+    unsigned long libre_swap = get_nr_swap_pages();
 
-    unsigned long used_swap = total_swap - free_swap;
+    unsigned long usada_swap = total_swap - libre_swap;
 
-    if (copy_to_user(swap_free, &free_swap, sizeof(free_swap)) ||
-        copy_to_user(swap_used, &used_swap, sizeof(used_swap))) {
+    if (copy_to_user(swap_libre, &libre_swap, sizeof(libre_swap)) ||
+        copy_to_user(swap_usada, &usada_swap, sizeof(usada_swap))) {
         return -EFAULT;
     }
 
     return 0;
 }
 
-SYSCALL_DEFINE2(get_page_faults, unsigned long __user *, minor_faults, unsigned long __user *, major_faults) {
-    unsigned long minflt = global_node_page_state(PGFAULT);    // Fallos menores
-    unsigned long majflt = global_node_page_state(PGMAJFAULT); // Fallos mayores
+SYSCALL_DEFINE2(obtener_fallos_pagina, unsigned long __user *, fallos_menores, unsigned long __user *, fallos_mayores) {
+    unsigned long fallos_min = global_node_page_state(PGFAULT);    // Fallos menores
+    unsigned long fallos_maj = global_node_page_state(PGMAJFAULT); // Fallos mayores
 
-    if (copy_to_user(minor_faults, &minflt, sizeof(minflt)) ||
-        copy_to_user(major_faults, &majflt, sizeof(majflt))) {
+    if (copy_to_user(fallos_menores, &fallos_min, sizeof(fallos_min)) ||
+        copy_to_user(fallos_mayores, &fallos_maj, sizeof(fallos_maj))) {
         return -EFAULT;
     }
 
     return 0;
 }
 
-SYSCALL_DEFINE2(get_act_inact_pages, unsigned long __user *, active_pages, unsigned long __user *, inactive_pages) {
-    unsigned long active = global_node_page_state(NR_ACTIVE_ANON) + global_node_page_state(NR_ACTIVE_FILE);
-    unsigned long inactive = global_node_page_state(NR_INACTIVE_ANON) + global_node_page_state(NR_INACTIVE_FILE);
+SYSCALL_DEFINE2(obtener_paginas_act_inact, unsigned long __user *, paginas_activas, unsigned long __user *, paginas_inactivas) {
+    unsigned long activas = global_node_page_state(NR_ACTIVE_ANON) + global_node_page_state(NR_ACTIVE_FILE);
+    unsigned long inactivas = global_node_page_state(NR_INACTIVE_ANON) + global_node_page_state(NR_INACTIVE_FILE);
 
-    if (copy_to_user(active_pages, &active, sizeof(active)) ||
-        copy_to_user(inactive_pages, &inactive, sizeof(inactive))) {
+    if (copy_to_user(paginas_activas, &activas, sizeof(activas)) ||
+        copy_to_user(paginas_inactivas, &inactivas, sizeof(inactivas))) {
         return -EFAULT;
     }
 
     return 0;
 }
 
-#define TOP_PROCESSES 5
-#define TASK_COMM_LEN 16
+#define MAX_PROCESOS 5
+#define LONGITUD_NOMBRE 16
 
-// Estructura auxiliar para almacenar PID, consumo de memoria y nombre del proceso
-struct proc_info {
+// Estructura auxiliar para almacenar los datos del proceso
+struct info_proceso {
     pid_t pid;
-    unsigned long mem;
-    char comm[TASK_COMM_LEN];
+    unsigned long uso_memoria;
+    char nombre[LONGITUD_NOMBRE];
 };
 
-SYSCALL_DEFINE3(get_memory_processes, pid_t __user *, pids, unsigned long __user *, mem_usage, char __user *, names) {
-    struct task_struct *task;
-    struct proc_info top_procs[TOP_PROCESSES] = { {0, 0, ""}, {0, 0, ""}, {0, 0, ""}, {0, 0, ""}, {0, 0, ""} };
+SYSCALL_DEFINE3(obtener_procesos_memoria, pid_t __user *, pids, unsigned long __user *, uso_memorias, char __user *, nombres_procesos) {
+    struct task_struct *proceso;
+    struct info_proceso procesos_top[MAX_PROCESOS] = { {0, 0, ""}, {0, 0, ""}, {0, 0, ""}, {0, 0, ""}, {0, 0, ""} };
     int i, j;
-    unsigned long task_mem;
+    unsigned long memoria_proceso;
 
-    // Recorremos la lista de tareas para buscar los procesos
+    // Iterar sobre la lista de procesos para identificar los de mayor consumo
     rcu_read_lock();
-    for_each_process(task) {
-        if (task->mm) {
-            task_mem = get_mm_rss(task->mm) << PAGE_SHIFT;
+    for_each_process(proceso) {
+        if (proceso->mm) {
+            memoria_proceso = get_mm_rss(proceso->mm) << PAGE_SHIFT;
 
-            // Añadir el proceso si tiene más memoria que alguno en la lista
-            for (i = 0; i < TOP_PROCESSES; i++) {
-                if (task_mem > top_procs[i].mem) {
-                    // Mover los procesos con menos memoria hacia abajo
-                    for (j = TOP_PROCESSES - 1; j > i; j--) {
-                        top_procs[j] = top_procs[j-1];
+            // Comparar con los procesos que ya están en la lista
+            for (i = 0; i < MAX_PROCESOS; i++) {
+                if (memoria_proceso > procesos_top[i].uso_memoria) {
+                    // Desplazar los procesos con menos memoria hacia abajo
+                    for (j = MAX_PROCESOS - 1; j > i; j--) {
+                        procesos_top[j] = procesos_top[j-1];
                     }
-                    // Insertar el nuevo proceso en la posición correcta
-                    top_procs[i].pid = task->pid;
-                    top_procs[i].mem = task_mem;
-                    strncpy(top_procs[i].comm, task->comm, TASK_COMM_LEN);
+                    // Insertar el proceso en la posición correcta
+                    procesos_top[i].pid = proceso->pid;
+                    procesos_top[i].uso_memoria = memoria_proceso;
+                    strncpy(procesos_top[i].nombre, proceso->comm, LONGITUD_NOMBRE);
                     break;
                 }
             }
@@ -355,11 +355,11 @@ SYSCALL_DEFINE3(get_memory_processes, pid_t __user *, pids, unsigned long __user
     }
     rcu_read_unlock();
 
-    // Copiamos los resultados a espacio de usuario
-    for (i = 0; i < TOP_PROCESSES; i++) {
-        if (copy_to_user(&pids[i], &top_procs[i].pid, sizeof(pid_t)) ||
-            copy_to_user(&mem_usage[i], &top_procs[i].mem, sizeof(unsigned long)) ||
-            copy_to_user(&names[i * TASK_COMM_LEN], top_procs[i].comm, TASK_COMM_LEN)) {
+    // Copiar la información al espacio de usuario
+    for (i = 0; i < MAX_PROCESOS; i++) {
+        if (copy_to_user(&pids[i], &procesos_top[i].pid, sizeof(pid_t)) ||
+            copy_to_user(&uso_memorias[i], &procesos_top[i].uso_memoria, sizeof(unsigned long)) ||
+            copy_to_user(&nombres_procesos[i * LONGITUD_NOMBRE], procesos_top[i].nombre, LONGITUD_NOMBRE)) {
             return -EFAULT;
         }
     }
