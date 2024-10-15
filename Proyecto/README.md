@@ -250,7 +250,7 @@ asmlinkage long obtener_procesos_memoria(pid_t __user *pids, unsigned long __use
 #endif
 ```
 
-## Crear espacio de usuario
+## Crear backend
 
 ### Crear API
 
@@ -506,7 +506,7 @@ El dashboard web es la una interfaz gráfica que mostrará información en tiemp
 Para ello crearemos una aplicacion web usando react.
 
 ```
-npx create ...
+npx create-react-app dashboard
 ```
 
 En el archivo App.js
